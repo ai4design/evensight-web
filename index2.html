@@ -1,0 +1,60 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evensight</title>
+    <link rel="stylesheet" href="{% static 'styles.css' %}">
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="{% url 'home' %}">Home</a></li>
+                <li><a href="{% url 'about' %}">About</a></li>
+                <li><a href="{% url 'services' %}">Services</a></li>
+                <li><a href="{% url 'contact' %}">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section class="hero">
+            <h1>Welcome to Evensight</h1>
+            <p>Your vision, our future.</p>
+            <a href="{% url 'learn_more' %}" class="btn">Learn More</a>
+        </section>
+        <section class="features">
+            <article class="feature">
+                <h2>Feature 1</h2>
+                <p>Description of feature 1.</p>
+            </article>
+            <article class="feature">
+                <h2>Feature 2</h2>
+                <p>Description of feature 2.</p>
+            </article>
+            <article class="feature">
+                <h2>Feature 3</h2>
+                <p>Description of feature 3.</p>
+            </article>
+        </section>
+        <section class="testimonials">
+            <h2>Testimonials</h2>
+            <p>What our clients say.</p>
+            <div class="testimonial">
+                <p>"This is a testimonial."</p>
+                <p>- Client Name</p>
+            </div>
+            <div class="testimonial">
+                <p>"Another testimonial."</p>
+                <p>- Another Client Name</p>
+            </div>
+        </section>
+    </main>
+    <footer>
+        <p>&copy; 2023 Evensight. All rights reserved.</p>
+    </footer>
+    <script src="{% static 'script.js' %}"></script>
+</body>
+</html>
