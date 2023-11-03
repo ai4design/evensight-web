@@ -1,83 +1,56 @@
 #!/bin/bash
 
-# Define the name of your Django project
-PROJECT_NAME="EvenSight"
+# Define the root directory of your Django project
+REPO_ROOT_DIR="/opt/bitnami/apps/django/django_projects/EvenSight"
+SETTINGS_PATH="$REPO_ROOT_DIR/EvenSight/settings.py"
 
-# Define the root directory of your cloned repository
-REPO_ROOT_DIR="/home/bitnami/evensight-web" # Change this to the path where your repo is located
+# Define the settings module
+export DJANGO_SETTINGS_MODULE="EvenSight.settings"
 
-# Define the Bitnami specific paths
-BITNAMI_BASE_DIR="/opt/bitnami"
-BITNAMI_PYTHON="$BITNAMI_BASE_DIR/python/bin/python"
-BITNAMI_PROJECTS_DIR="$BITNAMI_BASE_DIR/apps/django/django_projects"
-BITNAMI_PROJECT_DIR="$BITNAMI_PROJECTS_DIR/$PROJECT_NAME"
-BITNAMI_MANAGE_PY="$BITNAMI_PROJECT_DIR/manage.py"
+# Add the project directory to the PYTHONPATH
+export PYTHONPATH="$REPO_ROOT_DIR:$PYTHONPATH"
 
-# Set PYTHONPATH to include the directory where your Django project is located
-export PYTHONPATH="$BITNAMI_PROJECT_DIR:$PYTHONPATH"
+# Navigate to the Django project directory
+cd $REPO_ROOT_DIR || { echo "The Django project directory $REPO_ROOT_DIR does not exist."; exit 1; }
 
-# Prompt for database credentials
-read -p "Enter your MariaDB database name: " db_name
-read -p "Enter your MariaDB database user: " db_user
-read -sp "Enter your MariaDB database password: " db_password
-echo
-read -p "Enter your MariaDB host (default 'localhost'): " db_host
-db_host=${db_host:-localhost}
-read -p "Enter your MariaDB port (default '3306'): " db_port
-db_port=${db_port:-3306}
+# Check if the settings file exists before attempting to use sed
+if [ ! -f "$SETTINGS_PATH" ]; then
+    echo "The settings file at $SETTINGS_PATH cannot be found."
+    exit 1
+fi
 
-# Create the necessary directories
-echo "Creating directories..."
-mkdir -p "$BITNAMI_PROJECT_DIR"
-mkdir -p "$BITNAMI_PROJECT_DIR/static"
-mkdir -p "$BITNAMI_PROJECT_DIR/media"
-mkdir -p "$BITNAMI_PROJECT_DIR/$PROJECT_NAME"
+# Update the database settings in Django settings.py
+DB_NAME="evensight"
+DB_USER="root"
+DB_PASS="bengerth" # Replace with the actual password
+DB_HOST="localhost" # or your database host
+DB_PORT="3306"
 
-# Copy files from the repository root to the Bitnami project directory
-echo "Copying files..."
-cp -a "$REPO_ROOT_DIR/." "$BITNAMI_PROJECT_DIR/"
-
-# Navigate to the Bitnami project directory
-cd "$BITNAMI_PROJECT_DIR" || exit
-
-# Set the DJANGO_SETTINGS_MODULE environment variable
-export DJANGO_SETTINGS_MODULE="$PROJECT_NAME.settings"
-
-# Replace placeholders in settings.py with actual database credentials
-echo "Configuring settings.py with database credentials..."
-sed -i "s/'NAME': 'your-database-name'/'NAME': '$db_name'/g" "$BITNAMI_PROJECT_DIR/$PROJECT_NAME/settings.py"
-sed -i "s/'USER': 'your-database-user'/'USER': '$db_user'/g" "$BITNAMI_PROJECT_DIR/$PROJECT_NAME/settings.py"
-sed -i "s/'PASSWORD': 'your-database-password'/'PASSWORD': '$db_password'/g" "$BITNAMI_PROJECT_DIR/$PROJECT_NAME/settings.py"
-sed -i "s/'HOST': 'localhost'/'HOST': '$db_host'/g" "$BITNAMI_PROJECT_DIR/$PROJECT_NAME/settings.py"
-sed -i "s/'PORT': '3306'/'PORT': '$db_port'/g" "$BITNAMI_PROJECT_DIR/$PROJECT_NAME/settings.py"
+# Use sed to update settings.py with the new database configuration
+sed -i "s/'ENGINE': 'django.db.backends.sqlite3'/'ENGINE': 'django.db.backends.mysql'/g" "$SETTINGS_PATH"
+sed -i "s/'NAME': BASE_DIR \/ 'db.sqlite3'/'NAME': '$DB_NAME'/g" "$SETTINGS_PATH"
+sed -i "s/'USER': ''/'USER': '$DB_USER'/g" "$SETTINGS_PATH"
+sed -i "s/'PASSWORD': ''/'PASSWORD': '$DB_PASS'/g" "$SETTINGS_PATH"
+sed -i "s/'HOST': ''/'HOST': '$DB_HOST'/g" "$SETTINGS_PATH"
+sed -i "s/'PORT': ''/'PORT': '$DB_PORT'/g" "$SETTINGS_PATH"
 
 # Install project dependencies
-echo "Installing project dependencies..."
-$BITNAMI_PYTHON -m pip install -r "$BITNAMI_PROJECT_DIR/requirements.txt"
+pip install -r requirements.txt
 
 # Run Django checks
-echo "Running Django checks..."
-$BITNAMI_PYTHON $BITNAMI_MANAGE_PY check
+python manage.py check || { echo "Django checks failed."; exit 1; }
 
 # Run Django migrations
-echo "Running Django migrations..."
-$BITNAMI_PYTHON $BITNAMI_MANAGE_PY migrate
+python manage.py migrate || { echo "Django migrations failed."; exit 1; }
 
 # Collect static files
-echo "Collecting static files..."
-$BITNAMI_PYTHON $BITNAMI_MANAGE_PY collectstatic --noinput
+python manage.py collectstatic --noinput || { echo "Collecting static files failed."; exit 1; }
 
-# Set proper permissions
-echo "Setting proper permissions..."
-chown -R bitnami:daemon "$BITNAMI_PROJECT_DIR/static"
-chown -R bitnami:daemon "$BITNAMI_PROJECT_DIR/media"
-find "$BITNAMI_PROJECT_DIR/static" -type f -exec chmod 664 {} \;
-find "$BITNAMI_PROJECT_DIR/media" -type f -exec chmod 664 {} \;
-find "$BITNAMI_PROJECT_DIR/static" -type d -exec chmod 775 {} \;
-find "$BITNAMI_PROJECT_DIR/media" -type d -exec chmod 775 {} \;
+# Grant permissions to the database user
+mysql -u root -p -e "GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS'; FLUSH PRIVILEGES;"
 
-# Restart Apache to apply changes
-echo "Restarting Apache server..."
-$BITNAMI_BASE_DIR/ctlscript.sh restart apache
+# Restart the server (this command may vary depending on how you serve your application)
+# For example, if you're using Gunicorn with a service named 'myapp':
+# systemctl restart myapp
 
-echo "Django deployment script completed."
+echo "Django project setup completed successfully."
